@@ -103,17 +103,25 @@ def main():
             if line[:1] == '1':
                 test.append(1)
                 test_dict = dict(x.split(':') for x in line[2:].split(' '))
+                # format string to int type
                 for x in test_dict:
                     test_dict[x] = int(test_dict[x])
 
                 # guess test_dict is pos or neg
                 pos_prob = np.log(pos_class_prob)
                 neg_prob = np.log(neg_class_prob)
-                for x in test_dict:
-                    if (x not in positive) or (x not in negative):
-                        continue
-                    pos_prob += np.log(positive[x])
-                    neg_prob += np.log(negative[x])
+
+                for x in positive:
+                    if x in test_dict:
+                        pos_prob += np.log(positive[x])
+                    else:
+                        pos_prob += np.log(1-positive[x])
+
+                for x in negative:
+                    if x in test_dict:
+                        neg_prob += np.log(negative[x])
+                    else:
+                        neg_prob += np.log(1-negative[x])
 
                 # evaluate correct or not
                 if pos_prob > neg_prob:
@@ -133,11 +141,18 @@ def main():
                 # guess test_dict is pos or neg
                 pos_prob = np.log(pos_class_prob)
                 neg_prob = np.log(neg_class_prob)
-                for x in test_dict:
-                    if (x not in positive) or (x not in negative):
-                        continue
-                    pos_prob += np.log(positive[x])
-                    neg_prob += np.log(negative[x])
+
+                for x in positive:
+                    if x in test_dict:
+                        pos_prob += np.log(positive[x])
+                    else:
+                        pos_prob += np.log(1-positive[x])
+
+                for x in negative:
+                    if x in test_dict:
+                        neg_prob += np.log(negative[x])
+                    else:
+                        neg_prob += np.log(1-negative[x])
 
                 # evaluate correct or not
                 if neg_prob > pos_prob:
@@ -191,7 +206,7 @@ def main():
                           title='Normalized confusion matrix '+data_folder)
 
 
-    plt.savefig('confusion_matrix_'+data_folder+'.png', bbox_inches='tight')
+    plt.savefig('confusion_matrix_'+data_folder+'_bernoulli.png', bbox_inches='tight')
 
 
 
