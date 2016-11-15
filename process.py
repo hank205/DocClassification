@@ -7,6 +7,7 @@ from collections import Counter
 import pickle
 import itertools
 from sklearn.metrics import confusion_matrix
+from wordcloud import WordCloud
 
 # Plot method from:
 # http://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html
@@ -47,6 +48,7 @@ def main():
         print('Usage: python %s data_folder' % (sys.argv[0]))
         exit()
     data_folder = sys.argv[1]
+    global start_time
 
     # load trained dictionaries
     positive = {}
@@ -61,10 +63,15 @@ def main():
     with open('neg_'+data_folder+'_train_count.pkl', 'rb') as f:
         neg_count = pickle.load(f)
 
+    # print("--- %s seconds --- load " % (time.time() - start_time))
+    # start_time = time.time()
+
     pos_class_prob = float(pos_count)/(pos_count+neg_count)
     neg_class_prob = float(neg_count)/(pos_count+neg_count)
 
     # transform number of occurence to probability with Laplace Smoothing
+    
+    # total number of words in docs from pos/neg class
     positive_sum = 0.0
     negative_sum = 0.0
     for x in positive:
@@ -72,9 +79,7 @@ def main():
     for x in negative:
         negative_sum += negative[x]  
 
-    unique_counter = Counter(positive) + Counter(negative)
-    unique_words = len(unique_counter)
-
+    # make pos/neg set have the same keys to apply smoothing
     diff_pos = set(negative.keys()) - set(positive.keys())
     diff_neg = set(positive.keys()) - set(negative.keys())
     for x in diff_pos:
@@ -82,14 +87,26 @@ def main():
     for x in diff_neg:
         negative[x] = 0.0
 
+    # total number of unique words
+    unique_counter = Counter(positive) + Counter(negative)
+    unique_words = len(unique_counter)        
+
+    # print ('unique_words',unique_words)
+
     for x in positive:
         positive[x] = (positive[x]+1.0) / (positive_sum+unique_words)
     for x in negative:
         negative[x] = (negative[x]+1.0) / (negative_sum+unique_words)
 
+    # print("--- %s seconds --- preprocess " % (time.time() - start_time))
+    # start_time = time.time()
+
     # print positive
     # print negative
 
+    total_test_words = 0
+    total_skip_words = 0
+    total_count_words = 0
     test_count = 0
     correct_count = 0
     test = []
@@ -105,13 +122,16 @@ def main():
                 test_dict = dict(x.split(':') for x in line[2:].split(' '))
                 for x in test_dict:
                     test_dict[x] = int(test_dict[x])
+                    total_test_words+=1
 
                 # guess test_dict is pos or neg
                 pos_prob = np.log(pos_class_prob)
                 neg_prob = np.log(neg_class_prob)
                 for x in test_dict:
                     if (x not in positive) or (x not in negative):
+                        total_skip_words+=1
                         continue
+                    total_count_words+=1
                     pos_prob += np.log(positive[x])
                     neg_prob += np.log(negative[x])
 
@@ -129,13 +149,16 @@ def main():
                 test_dict = dict(x.split(':') for x in line[3:].split(' '))
                 for x in test_dict:
                     test_dict[x] = int(test_dict[x])
+                    total_test_words+=1
 
                 # guess test_dict is pos or neg
                 pos_prob = np.log(pos_class_prob)
                 neg_prob = np.log(neg_class_prob)
                 for x in test_dict:
                     if (x not in positive) or (x not in negative):
+                        total_skip_words+=1
                         continue
+                    total_count_words+=1
                     pos_prob += np.log(positive[x])
                     neg_prob += np.log(negative[x])
 
@@ -146,7 +169,11 @@ def main():
                 else:
                     pred.append(1)
         
-
+    # print('total_test_words', total_test_words)
+    # print('total_skip_words', total_skip_words)
+    # print('total_count_words', total_count_words)
+    # print("--- %s seconds --- done " % (time.time() - start_time))
+    # start_time = time.time()
 
     # print 'correct_count', correct_count
     # print 'test_count', test_count
@@ -174,28 +201,37 @@ def main():
 
   
 
-    # print and draw confusion matrix
-    class_names = ['class1','class2']
+    # # print and draw confusion matrix
+    # class_names = ['class1','class2']
 
-    cnf_matrix = confusion_matrix(test, pred)
-    np.set_printoptions(precision=2)
+    # cnf_matrix = confusion_matrix(test, pred)
+    # np.set_printoptions(precision=2)
 
-    # Plot non-normalized confusion matrix
+    # # Plot non-normalized confusion matrix
+    # # plt.figure()
+    # # plot_confusion_matrix(cnf_matrix, classes=class_names,
+    # #                       title='Confusion matrix, without normalization')
+
+    # # Plot normalized confusion matrix
     # plt.figure()
-    # plot_confusion_matrix(cnf_matrix, classes=class_names,
-    #                       title='Confusion matrix, without normalization')
+    # plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
+    #                       title='Normalized confusion matrix '+data_folder)
 
-    # Plot normalized confusion matrix
-    plt.figure()
-    plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
-                          title='Normalized confusion matrix '+data_folder)
+    # plt.savefig('confusion_matrix_'+data_folder+'.png', bbox_inches='tight')
 
 
-    plt.savefig('confusion_matrix_'+data_folder+'.png', bbox_inches='tight')
+    # plt.figure()
+    # # Read the whole text.
+    # text = open(data_folder+'_test.txt').read()
+    # wordcloud = WordCloud().generate(text)
+    # # Open a plot of the generated image.
+    # plt.imshow(wordcloud)
+    # plt.axis("off")
+    # plt.savefig('wordcloud_'+data_folder+'.png', bbox_inches='tight')
+    # # plt.show()
 
 
-
-if __name__ == '__main__':
+if __name__ == '__main__':    
     start_time = time.time()
     main()
     print("--- %s seconds ---" % (time.time() - start_time))
